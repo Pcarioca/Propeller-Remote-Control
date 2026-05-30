@@ -4,6 +4,8 @@ const SUPABASE_URL = "https://PROJECT_ID.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "PUBLISHABLE_KEY_ONLY";
 const DASHBOARD_LABEL = "github-pages-dashboard";
 const POLL_MS = 1000;
+const MAX_MOTOR_PERCENT = 40;
+const DEFAULT_COMMAND_EXPIRY_MS = 10000;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
@@ -237,7 +239,7 @@ async function refreshAll() {
   }
 }
 
-async function sendCommand(commandType, payload = {}, { priority, expiryMs = 10000 } = {}) {
+async function sendCommand(commandType, payload = {}, { priority, expiryMs = DEFAULT_COMMAND_EXPIRY_MS } = {}) {
   if (!state.selectedDeviceId) {
     setFeedback("Select a device first", true);
     return;
@@ -251,7 +253,14 @@ async function sendCommand(commandType, payload = {}, { priority, expiryMs = 100
     expires_at: new Date(Date.now() + expiryMs).toISOString(),
     requested_by_label: DASHBOARD_LABEL,
   };
-  if (priority !== undefined) command.priority = priority;
+  if (priority !== undefined) {
+    const parsedPriority = Number(priority);
+    if (!Number.isFinite(parsedPriority)) {
+      setFeedback("Command failed: invalid priority value", true);
+      return;
+    }
+    command.priority = Math.max(0, Math.min(100, parsedPriority));
+  }
 
   const { error } = await supabase.from("remote_commands").insert(command);
   if (error) {
@@ -277,13 +286,19 @@ function bindBasicControls() {
   });
 
   el.btnSendManual.addEventListener("click", () => {
-    const left = Math.min(40, Number(el.leftPercent.value));
-    const right = Math.min(40, Number(el.rightPercent.value));
+    const leftRaw = Number(el.leftPercent.value);
+    const rightRaw = Number(el.rightPercent.value);
+    if (!Number.isFinite(leftRaw) || !Number.isFinite(rightRaw)) {
+      setFeedback("Manual command failed: invalid motor percentage", true);
+      return;
+    }
+    const left = Math.min(MAX_MOTOR_PERCENT, leftRaw);
+    const right = Math.min(MAX_MOTOR_PERCENT, rightRaw);
     sendCommand("manual_set_motors", { left_percent: left, right_percent: right, ttl_s: 3 });
   });
 
   el.btnEmergency.addEventListener("click", () => {
-    sendCommand("emergency_stop", {}, { priority: 100, expiryMs: 10000 });
+    sendCommand("emergency_stop", {}, { priority: 100, expiryMs: DEFAULT_COMMAND_EXPIRY_MS });
   });
 
   el.btnPidSave.addEventListener("click", () => {
@@ -295,7 +310,12 @@ function bindBasicControls() {
       payload[key] = Number.isFinite(asNum) ? asNum : value;
     }
     if (payload.max_motor_percent !== undefined) {
-      payload.max_motor_percent = Math.min(40, Number(payload.max_motor_percent));
+      const maxMotor = Number(payload.max_motor_percent);
+      if (!Number.isFinite(maxMotor)) {
+        setFeedback("PID update failed: invalid max_motor_percent", true);
+        return;
+      }
+      payload.max_motor_percent = Math.min(MAX_MOTOR_PERCENT, maxMotor);
     }
     sendCommand("pid_update_config", payload);
   });

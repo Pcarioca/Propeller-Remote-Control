@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Propeller Remote Cloud Dashboard</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="topbar card">
+    <div class="status-grid">
+      <div>
+        <label for="device-select">Device</label>
+        <select id="device-select"></select>
+      </div>
+      <div><span class="label">Online</span><span id="status-online" class="pill">unknown</span></div>
+      <div><span class="label">Mode</span><span id="status-mode" class="pill">-</span></div>
+      <div><span class="label">Armed</span><span id="status-armed" class="pill">-</span></div>
+      <div><span class="label">MPU</span><span id="status-mpu" class="pill">-</span></div>
+      <div><span class="label">Cloud Control</span><span id="status-cloud" class="pill">-</span></div>
+      <button id="btn-emergency" class="btn danger">EMERGENCY STOP</button>
+    </div>
+    <div class="auth-row">
+      <div id="auth-state">Auth: checking...</div>
+      <form id="auth-form" class="inline-form">
+        <input id="auth-email" type="email" placeholder="email" />
+        <input id="auth-password" type="password" placeholder="password" />
+        <button type="submit" class="btn">Sign in</button>
+      </form>
+      <button id="btn-demo" class="btn alt">Demo mode</button>
+      <button id="btn-signout" class="btn alt">Sign out</button>
+    </div>
+    <div id="warnings"></div>
+    <div id="command-feedback"></div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Beam Digital Twin</h2>
+      <div class="beam-wrap">
+        <div class="beam-reference"></div>
+        <div id="beam" class="beam">
+          <span class="motor left"></span>
+          <span class="motor right"></span>
+        </div>
+      </div>
+      <p>Raw angle: <span id="beam-raw">-</span>° | Fused angle: <span id="beam-fused">-</span>°</p>
+    </section>
+
+    <section class="card">
+      <h2>Telemetry</h2>
+      <div class="telemetry-grid">
+        <div class="metric"><span>Raw angle</span><strong id="metric-raw_angle_deg">-</strong></div>
+        <div class="metric"><span>Fused angle</span><strong id="metric-fused_angle_deg">-</strong></div>
+        <div class="metric"><span>Pitch</span><strong id="metric-pitch_deg">-</strong></div>
+        <div class="metric"><span>Roll</span><strong id="metric-roll_deg">-</strong></div>
+        <div class="metric"><span>Gyro roll dps</span><strong id="metric-gyro_roll_dps">-</strong></div>
+        <div class="metric"><span>Temperature</span><strong id="metric-temp_c">-</strong></div>
+        <div class="metric"><span>Left motor % / us</span><strong id="metric-left_motor">-</strong></div>
+        <div class="metric"><span>Right motor % / us</span><strong id="metric-right_motor">-</strong></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Manual Control</h2>
+      <div class="button-row">
+        <button data-command="cloud_control_enable" class="btn cmd">Enable Cloud Control</button>
+        <button data-command="cloud_control_disable" class="btn cmd">Disable Cloud Control</button>
+        <button data-command="arm_start" class="btn cmd">Arm Start</button>
+        <button data-command="arm_skip" class="btn cmd">Arm Skip</button>
+        <button data-command="disarm" class="btn cmd">Disarm</button>
+        <button data-command="manual_start" class="btn cmd">Manual Start</button>
+      </div>
+      <div class="slider-row">
+        <label>Left % <input id="left-percent" type="range" min="0" max="40" value="0" /><span id="left-value">0</span></label>
+        <label>Right % <input id="right-percent" type="range" min="0" max="40" value="0" /><span id="right-value">0</span></label>
+        <button id="btn-send-manual" class="btn cmd">Send Manual Motor Command</button>
+      </div>
+      <div class="button-row nudge-grid">
+        <button data-command="nudge_both_up" class="btn cmd">Both Up</button>
+        <button data-command="nudge_both_down" class="btn cmd">Both Down</button>
+        <button data-command="nudge_left_up" class="btn cmd">Left Up</button>
+        <button data-command="nudge_left_down" class="btn cmd">Left Down</button>
+        <button data-command="nudge_right_up" class="btn cmd">Right Up</button>
+        <button data-command="nudge_right_down" class="btn cmd">Right Down</button>
+        <button data-command="nudge_left_down_right_up" class="btn cmd">Left Down / Right Up</button>
+        <button data-command="nudge_left_up_right_down" class="btn cmd">Left Up / Right Down</button>
+        <button data-command="hold_base" class="btn cmd">Hold Base</button>
+        <button data-command="hold_zero" class="btn cmd">Hold Zero</button>
+        <button data-command="manual_stop" class="btn cmd">Manual Stop</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>PID Panel</h2>
+      <form id="pid-form" class="pid-grid">
+        <label>target_angle_deg <input type="number" step="0.01" name="target_angle_deg" /></label>
+        <label>kp <input type="number" step="0.01" name="kp" /></label>
+        <label>ki <input type="number" step="0.01" name="ki" /></label>
+        <label>kd <input type="number" step="0.01" name="kd" /></label>
+        <label>kp_soft <input type="number" step="0.01" name="kp_soft" /></label>
+        <label>kp_strong <input type="number" step="0.01" name="kp_strong" /></label>
+        <label>kd_gyro <input type="number" step="0.01" name="kd_gyro" /></label>
+        <label>deadband_deg <input type="number" step="0.01" name="deadband_deg" /></label>
+        <label>correction_limit_percent <input type="number" step="0.1" name="correction_limit_percent" /></label>
+        <label>base_percent <input type="number" step="0.1" name="base_percent" /></label>
+        <label>max_motor_percent <input type="number" step="0.1" max="40" name="max_motor_percent" /></label>
+        <label>mixer_direction <input type="number" step="1" name="mixer_direction" /></label>
+        <label>gyro_sign <input type="number" step="1" name="gyro_sign" /></label>
+      </form>
+      <div class="button-row">
+        <button id="btn-pid-save" class="btn cmd">Save PID Config</button>
+        <button data-command="pid_prepare" class="btn cmd">PID Prepare</button>
+        <button data-command="pid_start" class="btn cmd">PID Start</button>
+        <button data-command="pid_stop" class="btn cmd">PID Stop</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>MPU Panel</h2>
+      <div class="button-row">
+        <button data-command="mpu_calibrate_zero" class="btn cmd">Calibrate Zero</button>
+        <button data-command="mpu_restart" class="btn cmd">Restart MPU</button>
+      </div>
+    </section>
+
+    <section class="card logs-grid">
+      <div>
+        <h2>Latest Events</h2>
+        <ul id="events-list" class="log-list"></ul>
+      </div>
+      <div>
+        <h2>Remote Commands</h2>
+        <ul id="commands-list" class="log-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
